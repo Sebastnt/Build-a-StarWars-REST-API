@@ -109,16 +109,55 @@ def get_planet(planets_id):
     return jsonify(response_body), 200
 
 
-@app.route('/user/favorites', methods=['GET'])
-def get_favorites():
-    favorites = Favorites.query.all()
-    list_favorites = list(map(lambda favorite : favorite.serialize(), favorites ))
-    print(list_favorites)
+@app.route('/user/<int:user_id>/favorites', methods=['GET'])
+def get_user_favorites(user_id):
+    favorites_query = Favorites.query.filter_by(user_id=user_id)
+    list_favorites = []
+    for i in favorites_query:
+        if i.planets_id == None:
+            favorite_people = People.query.filter_by(id=i.people_id).first()
+            list_favorites.append(favorite_people.name)
+        else:
+            favorite_planets = Planets.query.filter_by(id=i.planets_id).first()
+            list_favorites.append(favorite_planets.name)
+
+    for i in favorites_query:
+        if i.people_id == None:
+            favorite_planets = Planets.query.filter_by(id=i.planets_id).first()
+            list_favorites.append(favorite_planets.name)
+        else:
+            favorite_people = People.query.filter_by(id=i.people_id).first()
+            list_favorites.append(favorite_people.name)
+
     response_body = {
         "msg": "Hello, from /user/favorites",
-        "list_favorites": list_favorites
+        "list_favorites_{}".format(user_id): list_favorites
     }
     return jsonify(response_body), 200
+
+
+# @app.route('/favorite/planet/<int:planet_id>', methods=['POST'])
+# def add_new_favorite_planet(planet_id):
+#     Favorites.append(request.json)
+#     return jsonify(Favorites[planet_id]), 200
+
+# @app.route('/favorite/planet/<int:people_id>', methods=['POST'])
+# def add_favorite_people(people_id):
+#     Favorites.append(request.json)
+#     return jsonify(Favorites[people_id]), 200
+
+
+# @app.route('/favorite/planet/<int:planet_id>', methods=['DELETE'])
+# def delete_favorite_planet(planet_id):
+#     Favorites.pop((planet_id-1))
+#     return jsonify(Favorites)
+
+# @app.route('/favorite/people/<int:people_id>', methods=['DELETE'])
+# def delete_favorite_people(people_id):
+#     Favorites.pop((people_id-1))
+#     return jsonify(Favorites)
+
+
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
