@@ -26,6 +26,14 @@ db.init_app(app)
 CORS(app)
 setup_admin(app)
 
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+from flask_jwt_extended import JWTManager
+
+app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this!
+jwt = JWTManager(app)
+
 # Handle/serialize errors like a JSON object
 @app.errorhandler(APIException)
 def handle_invalid_usage(error):
@@ -35,6 +43,30 @@ def handle_invalid_usage(error):
 @app.route('/')
 def sitemap():
     return generate_sitemap(app)
+# ADD LOGIN, SIGNUP
+
+@app.route("/login", methods=["POST"])
+def login():
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
+    user = User.query.filter_by(email=email).first()
+
+    if user is None:
+        return jsonify({"msg": "User doesn't exist"}), 404
+    if email != user.email or password != user.password:
+        return jsonify({"msg": "Bad email or password"}), 401
+
+    access_token = create_access_token(identity=user.id)
+    return jsonify(access_token=access_token)
+
+@app.route("/home", methods=["GET"])
+@jwt_required()
+def home():
+    response_body = {
+        "msg": "Hello, you are logged in",
+    }
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
 
 @app.route('/user', methods=['GET'])
 def get_users():
@@ -46,6 +78,22 @@ def get_users():
         "list_people": list_users
     }
     return jsonify(response_body), 200
+
+@app.route('/signup', methods=['POST'])
+def signup():
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
+    user = User.query.filter_by(email=email).first()
+    if user is None:
+        new_user = User(email=email, password=password, is_active=True )
+        db.session.add(new_user)
+        db.session.commit()
+        response_body = {
+            "msg": "User added correctly"
+        }
+        return jsonify(response_body), 200
+
+    return jsonify({"msg": "User already exists"}), 404
 
 
 #select * from people where id = user_id
@@ -101,7 +149,6 @@ def get_planets():
 @app.route('/planets/<int:planets_id>', methods=['GET'])
 def get_planet(planets_id):
     planet = Planets.query.filter_by(id=planets_id).first()
-    print(planet.serialize())
     response_body = {
         "msg": "Hello, from planet",
         "person": planet.serialize()
@@ -136,10 +183,36 @@ def get_user_favorites(user_id):
     return jsonify(response_body), 200
 
 
-# @app.route('/favorite/planet/<int:planet_id>', methods=['POST'])
-# def add_new_favorite_planet(planet_id):
-#     Favorites.append(request.json)
-#     return jsonify(Favorites[planet_id]), 200
+@app.route('/favorites/planet/<int:planets_id>', methods=['POST'])
+@jwt_required()
+def add_new_favorite_planet(planets_id):
+    current_user = get_jwt_identity()
+    planets_id = request.json.get("planets_id", None)
+    favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.planets_id==planets_id).first()
+
+    if not favorites_query:
+        new_favorite = Favorites(user_id=current_user, planets_id=planets_id)
+        db.session.add(new_favorite)
+        db.session.commit()
+        return jsonify({"msg": "Creando favorito"}), 200
+    
+    return jsonify({"msg": "Favorite already added"}), 401
+
+    # planets = request.json.get("planet", None)
+    # planet = Planets.query.filter_by(planet_id=planet_id).first()
+    # for i in favorites_query:
+    #     if i.planets_id == None:
+    #         if planet is None:
+    #             new_favorite = Planets(name=planet)
+    #             db.session.add(new_favorite)
+    #             db.session.commit()
+                # response_body = {
+                #     "msg": "Favorite added correctly"
+                # }
+                # return jsonify(response_body), 200
+
+            # return jsonify({"msg": "Favorite already exists"}), 404
+
 
 # @app.route('/favorite/planet/<int:people_id>', methods=['POST'])
 # def add_favorite_people(people_id):
@@ -156,7 +229,6 @@ def get_user_favorites(user_id):
 # def delete_favorite_people(people_id):
 #     Favorites.pop((people_id-1))
 #     return jsonify(Favorites)
-
 
 
 # this only runs if `$ python src/app.py` is executed

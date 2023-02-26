@@ -55,11 +55,11 @@ class Planets(db.Model):
 class Favorites(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    people_id = db.Column(db.Integer, db.ForeignKey('people.id'), nullable=False)
-    planets_id = db.Column(db.Integer, db.ForeignKey('planets.id'), nullable=False)
+    people_id = db.Column(db.Integer, db.ForeignKey('people.id'), nullable=True)
+    planets_id = db.Column(db.Integer, db.ForeignKey('planets.id'), nullable=True)
     
     def __repr__(self):
-        return '<Favorites %r>' % self.name
+        return '<Favorites %r>' % self.id
 
     def serialize(self):
         return {
