@@ -151,16 +151,40 @@ def get_planet(planets_id):
     return jsonify(response_body), 200
 
 
-@app.route('/user/<int:user_id>/favorites',methods=['GET'])
+# @app.route('/user/<int:user_id>/favorites',methods=['GET'])
+# def get_user_favorites(user_id):
+#     user_favorites = Favorites.query.filter_by(user_id=user_id).all() # all() ???
+#     list_of_user_favorite = list(map(lambda favorites: favorites.serialize(), user_favorites))
+
+#     if user_favorites is None:
+#         response_body = {"Message": "No users favorites to show!"}
+#         return jsonify(response_body), 404
+#     return jsonify(list_of_user_favorite), 200
+
+@app.route('/user/<int:user_id>/favorites', methods=['GET'])
 def get_user_favorites(user_id):
-    user_favorites = Favorites.query.filter_by(user_id=user_id).all() # all() ???
-    list_of_user_favorite = list(map(lambda favorites: favorites.serialize(), user_favorites))
-
-    if user_favorites is None:
-        response_body = {"Message": "No users favorites to show!"}
-        return jsonify(response_body), 404
-    return jsonify(list_of_user_favorite), 200
-
+    favorites_query = Favorites.query.filter_by(user_id=user_id).all()
+    list_favorites = []
+    print(len(favorites_query))
+    for i in favorites_query:
+        if i.planets_id == None:
+            favorite_people = People.query.filter_by(id=i.people_id).first()
+            list_favorites.append(favorite_people.name)
+        else:
+            favorite_planets = Planets.query.filter_by(id=i.planets_id).first()
+            list_favorites.append(favorite_planets.name)
+    for i in favorites_query:
+        if i.people_id == None:
+            favorite_planets = Planets.query.filter_by(id=i.planets_id).first()
+            list_favorites.append(favorite_planets.name)
+        else:
+            favorite_people = People.query.filter_by(id=i.people_id).first()
+            list_favorites.append(favorite_people.name)
+    response_body = {
+        "msg": "Hello, from /user/favorites",
+        "list_favorites_{}".format(user_id): list_favorites
+    }
+    return jsonify(response_body), 200
 
 @app.route('/favorites/planets/<int:planets_id>', methods=['POST'])
 @jwt_required()
@@ -182,7 +206,6 @@ def add_new_favorite_planet(planets_id):
 @jwt_required()
 def add_new_favorite_people(people_id):
     current_user = get_jwt_identity()
-    people_id = request.json.get("people_id", None)
     favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.people_id==people_id).first()
 
     if not favorites_query:
@@ -191,9 +214,6 @@ def add_new_favorite_people(people_id):
         db.session.commit()
         return jsonify({"msg": "Creating favorite"}), 200
     if favorites_query:
-        new_favorite = Favorites(user_id=current_user, people_id=people_id)
-        db.session.add(new_favorite)
-        db.session.commit()
         return jsonify({"msg": "Favorite already added"}), 200
 
     return jsonify({"msg": "Can't add new favorite"}), 401
@@ -225,8 +245,7 @@ def delete_favorite_planet(planets_id):
 @jwt_required()
 def delete_favorite_people(people_id):
     current_user = get_jwt_identity()
-    people_id = request.json.get("people_id", None)
-    favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.people_id==people_id).first()
+    favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.people_id==people_id).all()
 
     if favorites_query:
         favorite = Favorites(user_id=current_user, people_id=people_id)
@@ -235,9 +254,6 @@ def delete_favorite_people(people_id):
         return jsonify({"msg": "Deleting favorite people"}), 200
     
     if not favorites_query:
-        favorite = Favorites(user_id=current_user, people_id=people_id)
-        db.session.delete(favorite)
-        db.session.commit()
         return jsonify({"msg": "Favorite already deleted"}), 200
     
     return jsonify({"msg": "Can't find favorite"}), 401
