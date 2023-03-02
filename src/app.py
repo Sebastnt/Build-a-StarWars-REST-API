@@ -190,7 +190,6 @@ def get_user_favorites(user_id):
 @jwt_required()
 def add_new_favorite_planet(planets_id):
     current_user = get_jwt_identity()
-    planets_id = request.json.get("planets_id", None)
     favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.planets_id==planets_id).first()
 
     if not favorites_query:
@@ -198,11 +197,13 @@ def add_new_favorite_planet(planets_id):
         db.session.add(new_favorite)
         db.session.commit()
         return jsonify({"msg": "Creating favorite"}), 200
+    if favorites_query:
+        return jsonify({"msg": "Favorite already added"}), 200
     
     return jsonify({"msg": "Favorite already added"}), 401
 
 
-@app.route('/favorite/people/<int:people_id>', methods=['POST'])
+@app.route('/favorites/people/<int:people_id>', methods=['POST'])
 @jwt_required()
 def add_new_favorite_people(people_id):
     current_user = get_jwt_identity()
@@ -219,16 +220,14 @@ def add_new_favorite_people(people_id):
     return jsonify({"msg": "Can't add new favorite"}), 401
 
 
-@app.route('/favorite/planets/<int:planets_id>', methods=['DELETE'])
+@app.route('/favorites/planets/<int:planets_id>', methods=['DELETE'])
 @jwt_required()
 def delete_favorite_planet(planets_id):
     current_user = get_jwt_identity()
-    planets_id = request.json.get("planets_id", None)
     favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.planets_id==planets_id).first()
 
     if favorites_query:
-        favorite = Favorites(user_id=current_user, planets_id=planets_id)
-        db.session.delete(favorite)
+        db.session.delete(favorites_query)
         db.session.commit()
         return jsonify({"msg": "Deleting favorite planet"}), 200
     
@@ -241,15 +240,14 @@ def delete_favorite_planet(planets_id):
     return jsonify({"msg": "Can't find favorite"}), 401
     
 
-@app.route('/favorite/people/<int:people_id>', methods=['DELETE'])
+@app.route('/favorites/people/<int:people_id>', methods=['DELETE'])
 @jwt_required()
 def delete_favorite_people(people_id):
     current_user = get_jwt_identity()
-    favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.people_id==people_id).all()
+    favorites_query = Favorites.query.filter(Favorites.user_id==current_user, Favorites.people_id==people_id).first()
 
     if favorites_query:
-        favorite = Favorites(user_id=current_user, people_id=people_id)
-        db.session.delete(favorite)
+        db.session.delete(favorites_query)
         db.session.commit()
         return jsonify({"msg": "Deleting favorite people"}), 200
     
